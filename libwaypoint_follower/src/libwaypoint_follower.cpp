@@ -562,6 +562,13 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
   {
     return current_index;
   }
+  else if (fabs(current_path.waypoints.at(current_index).twist.twist.linear.x) < 1.0e-4 &&
+           current_index + 1 < path_size &&
+           fabs(current_path.waypoints.at(current_index + 1).twist.twist.linear.x) < 1.0e-4)
+  {
+    // Stay at the stop waypoint
+    return current_index;
+  }
   else
   {
     // Update current_index
