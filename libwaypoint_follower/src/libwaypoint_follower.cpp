@@ -653,13 +653,48 @@ int updateCurrentIndex(const autoware_msgs::Lane& current_path, geometry_msgs::P
 
 geometry_msgs::Pose getRelativePose(const geometry_msgs::Pose& current_pose, const geometry_msgs::Pose& target_pose)
 {
-  geometry_msgs::Pose relative_pose;
+  // --- Normalize input quaternions FIRST ---
+  auto normalizeQuaternion = [](const geometry_msgs::Quaternion& q_in) {
+    geometry_msgs::Quaternion q = q_in;
+    double norm = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+
+    if (norm < 1e-6)
+    {
+      // invalid quaternion → identity quaternion
+      q.x = 0.0;
+      q.y = 0.0;
+      q.z = 0.0;
+      q.w = 1.0;
+    }
+    else
+    {
+      q.x /= norm;
+      q.y /= norm;
+      q.z /= norm;
+      q.w /= norm;
+    }
+    return q;
+  };
+
+  geometry_msgs::Pose current_norm = current_pose;
+  geometry_msgs::Pose target_norm = target_pose;
+
+  current_norm.orientation = normalizeQuaternion(current_pose.orientation);
+  target_norm.orientation = normalizeQuaternion(target_pose.orientation);
+
+  // --- TF conversion (safe now because inputs are normalized) ---
   tf::Transform current_tf;
-  tf::poseMsgToTF(current_pose, current_tf);
+  tf::poseMsgToTF(current_norm, current_tf);
+
   tf::Transform target_tf;
-  tf::poseMsgToTF(target_pose, target_tf);
+  tf::poseMsgToTF(target_norm, target_tf);
+
+  // --- Compute relative pose ---
   tf::Transform relative_tf = current_tf.inverse() * target_tf;
+
+  geometry_msgs::Pose relative_pose;
   tf::poseTFToMsg(relative_tf, relative_pose);
+
   return relative_pose;
 }
 
